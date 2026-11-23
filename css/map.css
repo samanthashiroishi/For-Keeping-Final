@@ -42,6 +42,44 @@
   font-size: 0.9rem;
 }
 
+
+/* ---------- MEMORY THUMBNAIL MARKERS ---------- */
+
+.memory-thumbnail-marker {
+  background: transparent;
+  border: none;
+}
+
+.memory-thumbnail-frame {
+  width: 52px;
+  height: 52px;
+  overflow: hidden;
+  border: 0px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  background: white;
+}
+
+.memory-thumbnail-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.memory-thumbnail-fallback {
+  width: 16px;
+  height: 16px;
+  margin: 2px;
+  border: 0px;
+  background: var(--accent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+
+
+
+
+
 @media (max-width: 767px) {
   .map-page main {
     width: calc(100% - 32px);

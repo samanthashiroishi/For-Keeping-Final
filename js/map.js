@@ -46,6 +46,48 @@ document.addEventListener("DOMContentLoaded", async function() {
   }
 
 
+  /* ---------- GET MEMORY THUMBNAIL ---------- */
+
+  async function getThumbnail(memory) {
+
+    const media = memory.media || [];
+
+    const image = media.find(function(item) {
+      return item.type === "image" && item.src;
+    });
+
+    if (image) {
+      if (image.src.startsWith("data:")) {
+        return image.src;
+      }
+
+      if (image.src.startsWith("blob:")) {
+        return image.src;
+      }
+
+      return image.src;
+    }
+
+    // If the memory uses uploaded media stored in IndexedDB,
+    // retrieve the first available image.
+    for (const item of media) {
+      if (item.type === "image" && item.id) {
+        try {
+          const storedMedia = await window.memoryStorage.getMedia(item.id);
+
+          if (storedMedia) {
+            return URL.createObjectURL(storedMedia);
+          }
+        } catch (error) {
+          console.error("Could not load memory thumbnail:", error);
+        }
+      }
+    }
+
+    return null;
+  }
+
+
   /* ---------- FIND LOCATION COORDINATES ---------- */
 
   async function findCoordinates(location) {
@@ -116,7 +158,37 @@ document.addEventListener("DOMContentLoaded", async function() {
       continue;
     }
 
-    const marker = L.marker(coordinates).addTo(map);
+    const thumbnail = await getThumbnail(memory);
+
+    let markerIcon;
+
+    if (thumbnail) {
+      markerIcon = L.divIcon({
+        className: "memory-thumbnail-marker",
+        html: `
+          <div class="memory-thumbnail-frame">
+            <img src="${thumbnail}" alt="" />
+          </div>
+        `,
+        iconSize: [56, 56],
+        iconAnchor: [28, 28],
+        popupAnchor: [0, -28]
+      });
+
+    } else {
+      markerIcon = L.divIcon({
+        className: "memory-thumbnail-marker",
+        html: `
+          <div class="memory-thumbnail-fallback"></div>
+        `,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+    }
+
+    const marker = L.marker(coordinates, {
+      icon: markerIcon
+    }).addTo(map);
 
     const placeLabel =
       memory.location.displayName ||
