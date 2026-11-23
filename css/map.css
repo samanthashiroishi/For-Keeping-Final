@@ -1,0 +1,55 @@
+/* ---------- MAP PAGE ---------- */
+
+.map-page main {
+  width: min(1200px, calc(100% - 48px));
+  margin: 55px auto 70px;
+}
+
+.map-page .map-heading {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  font-weight: normal;
+}
+
+.map-page #map-message {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+}
+
+#memory-map {
+  width: 100%;
+  height: min(72vh, 720px);
+  min-height: 420px;
+  background: #f2f2f2;
+  z-index: 1;
+}
+
+.memory-map-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+  font-family: "Times New Roman", serif;
+  color: #000;
+}
+
+.memory-map-popup strong {
+  font-size: 1rem;
+  font-weight: normal;
+}
+
+.memory-map-popup span {
+  font-size: 0.9rem;
+}
+
+@media (max-width: 767px) {
+  .map-page main {
+    width: calc(100% - 32px);
+    margin-top: 35px;
+  }
+
+  #memory-map {
+    height: 68vh;
+    min-height: 380px;
+  }
+}

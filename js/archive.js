@@ -1,4 +1,3 @@
-
 document.addEventListener("DOMContentLoaded", function() {
 
   /* ---------- ELEMENTS ---------- */
@@ -17,6 +16,10 @@ document.addEventListener("DOMContentLoaded", function() {
   const addMemoryForm = document.getElementById("add-memory-form");
   const addMemoryMessage = document.getElementById("add-memory-message");
 
+  // Location pickers for new and existing memories.
+  let addLocationPicker = null;
+  let editLocationPicker = null;
+
   // Stores the categories currently selected.
   let selectedFilters = [];
 
@@ -26,8 +29,27 @@ document.addEventListener("DOMContentLoaded", function() {
   // Stores temporary URLs for uploaded media.
   const mediaURLCache = new Map();
 
-  // Stores media currently being edited in the overlay.
-  let editingMedia = [];
+  // Stores the layout positions of memories.
+  const LAYOUT_KEY = "forKeepingMemoryLayout";
+  const LAYOUT_IDS_KEY = "forKeepingMemoryLayoutIds";
+
+
+  /* ---------- LOCATION PICKERS ---------- */
+
+  // Add the location search to the existing add-memory form.
+  const mediaLabel = addMemoryForm.querySelector('label[for="new-memory-media"]');
+
+  const addLocationLabel = document.createElement("label");
+  addLocationLabel.textContent = "location";
+  addLocationLabel.htmlFor = "new-memory-location";
+
+  const addLocationContainer = document.createElement("div");
+  addLocationContainer.id = "new-memory-location";
+
+  addMemoryForm.insertBefore(addLocationLabel, mediaLabel);
+  addMemoryForm.insertBefore(addLocationContainer, mediaLabel);
+
+  addLocationPicker = window.createLocationPicker(addLocationContainer);
 
 
   /* ---------- GET SAVED MEMORIES ---------- */
@@ -37,12 +59,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const savedOverrides = window.memoryStorage.loadOverrides();
     const newMemories = window.memoryStorage.loadNewMemories();
 
-    // Put visitor-created memories before the original memories.
-    // Reverse the array so the most recently added memory comes first.
-    const allMemories = [
-      ...newMemories.slice().reverse(),
-      ...window.memories
-    ];
+    // Combine original memories and visitor-created memories.
+    const allMemories = [...window.memories, ...newMemories];
 
     // Apply any saved edits to each memory.
     return allMemories.map(function(memory) {
@@ -70,6 +88,27 @@ document.addEventListener("DOMContentLoaded", function() {
       day: "numeric",
       year: "numeric"
     });
+
+  }
+
+
+  /* ---------- LOAD AND SAVE LAYOUT ---------- */
+
+  function loadLayout() {
+
+    const savedLayout = localStorage.getItem(LAYOUT_KEY);
+
+    return savedLayout ? JSON.parse(savedLayout) : {};
+
+  }
+
+
+  function saveLayout(layout) {
+
+    localStorage.setItem(
+      LAYOUT_KEY,
+      JSON.stringify(layout)
+    );
 
   }
 
@@ -103,7 +142,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   /* ---------- MEMORY LAYOUT ---------- */
 
-  function arrangeMemories() {
+  function arrangeMemories(forceReflow = false) {
 
     const memoryElements = Array.from(
       memoryContainer.querySelectorAll(".memory")
@@ -129,50 +168,110 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     const containerWidth = memoryContainer.clientWidth;
+    const layout = loadLayout();
 
-    // Clear all previous positions.
-    memoryElements.forEach(function(element) {
+    // When the collection changes, calculate positions for every memory again.
+    // Otherwise, keep the previously saved arrangement.
+    if (!forceReflow) {
 
-      element.style.position = "absolute";
-      element.style.left = "";
-      element.style.top = "";
-      element.style.width = "";
+      let allPositionsExist = memoryElements.every(function(element) {
+        return Boolean(layout[element.dataset.id]);
+      });
+
+      if (allPositionsExist) {
+
+        let occupied = [];
+
+        memoryElements.forEach(function(element) {
+
+          const savedPosition = layout[element.dataset.id];
+
+          element.style.position = "absolute";
+          element.style.left = savedPosition.left + "%";
+          element.style.top = savedPosition.top + "px";
+          element.style.width = savedPosition.width + "%";
+
+          const left = containerWidth * savedPosition.left / 100;
+          const width = containerWidth * savedPosition.width / 100;
+          const height = element.offsetHeight;
+
+          occupied.push({
+            left: left,
+            top: savedPosition.top,
+            right: left + width,
+            bottom: savedPosition.top + height
+          });
+
+        });
+
+        const archiveBottom = occupied.reduce(function(max, rectangle) {
+          return Math.max(max, rectangle.bottom);
+        }, 0);
+
+        memoryContainer.style.minHeight =
+          Math.max(650, archiveBottom + 150) + "px";
+
+        localStorage.setItem(
+          LAYOUT_IDS_KEY,
+          JSON.stringify(getMemories().map(function(memory) {
+            return String(memory.id);
+          }))
+        );
+
+        return;
+
+      }
+
+    }
+
+    // Place newly created memories first so they enter near the top.
+    // The remaining memories are then fitted around them.
+    const orderedElements = memoryElements.slice().sort(function(a, b) {
+
+      const aIsNew = String(a.dataset.id).startsWith("new-");
+      const bIsNew = String(b.dataset.id).startsWith("new-");
+
+      if (aIsNew && !bIsNew) return -1;
+      if (!aIsNew && bIsNew) return 1;
+      return 0;
 
     });
 
     const occupied = [];
 
-    // Increase the density as the archive grows.
-    const gap = Math.max(
-      5,
-      22 - memoryElements.length * 1.2
-    );
+    // As the archive grows, reduce the gap between memories slightly.
+    // This makes a larger collection feel more densely arranged.
+    const gap = Math.max(12, 35 - memoryElements.length * 0.7);
 
-    // Position memories one at a time.
-    memoryElements.forEach(function(element) {
+    orderedElements.forEach(function(element) {
 
+      const memoryId = element.dataset.id;
+
+      // Give each memory a varied thumbnail width whenever the layout is rebuilt.
       const width = randomBetween(12, 21);
 
+      element.style.position = "absolute";
       element.style.width = width + "%";
 
+      // Measure the thumbnail and caption after setting its width.
       const elementHeight = element.offsetHeight;
       const elementWidth = containerWidth * width / 100;
 
       const currentBottom = occupied.reduce(function(max, rectangle) {
-
         return Math.max(max, rectangle.bottom);
-
       }, 20);
 
       let chosenPosition = null;
 
-      for (let attempt = 0; attempt < 600; attempt++) {
+      // Try many positions, including spaces between memories already placed.
+      for (let attempt = 0; attempt < 800; attempt++) {
 
         const leftPercent = randomBetween(3, 97 - width);
 
+        // The search area expands as the archive gets longer.
         const top = randomBetween(
           20,
-          Math.max(80, currentBottom + 45)
+          Math.max(120, currentBottom + 220)
         );
 
         const left = containerWidth * leftPercent / 100;
@@ -199,13 +298,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
       }
 
-      // If no suitable position was found,
-      // place the memory below the existing memories.
+      // If the available spaces are full, continue below the current collection.
       if (!chosenPosition) {
 
         const leftPercent = randomBetween(3, 97 - width);
-        const top = currentBottom + gap + 10;
-
+        const top = currentBottom + gap + 20;
         const left = containerWidth * leftPercent / 100;
 
         chosenPosition = {
@@ -223,15 +320,31 @@ document.addEventListener("DOMContentLoaded", function() {
 
       }
 
+      // Apply and save the new position.
       element.style.left = chosenPosition.left + "%";
       element.style.top = chosenPosition.top + "px";
 
+      layout[memoryId] = {
+        left: chosenPosition.left,
+        top: chosenPosition.top,
+        width: chosenPosition.width,
+        height: elementHeight
+      };
+
     });
 
+    // Save the complete new arrangement and the IDs in the full collection.
+    saveLayout(layout);
+
+    localStorage.setItem(
+      LAYOUT_IDS_KEY,
+      JSON.stringify(getMemories().map(function(memory) {
+        return String(memory.id);
+      }))
+    );
+
     const archiveBottom = occupied.reduce(function(max, rectangle) {
-
       return Math.max(max, rectangle.bottom);
-
     }, 0);
 
     memoryContainer.style.minHeight =
@@ -244,12 +357,15 @@ document.addEventListener("DOMContentLoaded", function() {
 
   async function resolveMediaSource(media) {
 
+    // Original photos and videos use their existing file paths.
     if (media.src) {
       return media.src;
     }
 
+    // Uploaded media is retrieved from IndexedDB.
     if (media.storageKey) {
 
+      // Reuse an existing temporary URL if one exists.
       if (mediaURLCache.has(media.storageKey)) {
         return mediaURLCache.get(media.storageKey);
       }
@@ -273,26 +389,9 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
 
-  /* ---------- CLEAN UP TEMPORARY MEDIA URLS ---------- */
-
-  function cleanUpEditingMedia() {
-
-    editingMedia.forEach(function(media) {
-
-      if (media.previewURL) {
-        URL.revokeObjectURL(media.previewURL);
-      }
-
-    });
-
-    editingMedia = [];
-
-  }
-
-
   /* ---------- DISPLAY MEMORIES ---------- */
 
-  async function displayMemories(memoryList) {
+  async function displayMemories(memoryList, reflowLayout = false) {
 
     memoryContainer.innerHTML = "";
 
@@ -300,18 +399,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
     memoryList.forEach(function(memory) {
 
+      // Create the memory container.
       const memoryElement = document.createElement("figure");
       memoryElement.classList.add("memory");
       memoryElement.dataset.id = memory.id;
 
-      const firstMedia = (memory.media || [])[0];
-
-      if (!firstMedia) {
-        return;
-      }
+      const firstMedia = memory.media[0];
 
       let thumbnail;
 
+      // Create a video thumbnail.
       if (firstMedia.type === "video") {
 
         thumbnail = document.createElement("video");
@@ -325,6 +422,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
       } else {
 
+        // Create an image thumbnail.
         thumbnail = document.createElement("img");
         thumbnail.alt = memory.title;
 
@@ -332,13 +430,17 @@ document.addEventListener("DOMContentLoaded", function() {
 
       thumbnail.classList.add("memory-thumbnail");
 
+
+      // Create the caption.
       const caption = document.createElement("figcaption");
       caption.classList.add("memory-caption");
 
+      // Add the title.
       const title = document.createElement("span");
       title.classList.add("memory-title");
       title.textContent = memory.title;
 
+      // Add the date.
       const date = document.createElement("span");
       date.classList.add("memory-date");
       date.textContent = formatDate(memory.date);
@@ -351,6 +453,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
       memoryContainer.appendChild(memoryElement);
 
+
+      // Load the media before arranging the archive.
       const loadingTask = resolveMediaSource(firstMedia)
         .then(function(source) {
 
@@ -359,13 +463,10 @@ document.addEventListener("DOMContentLoaded", function() {
             if (firstMedia.type === "video") {
 
               thumbnail.addEventListener("loadedmetadata", function() {
-
                 thumbnail.play().catch(function(error) {
                   console.log("Video thumbnail could not autoplay:", error);
                 });
-
                 resolve();
-
               }, { once: true });
 
               thumbnail.addEventListener("error", resolve, { once: true });
@@ -379,6 +480,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             thumbnail.src = source;
 
+            // Handle media that is already cached.
             if (
               firstMedia.type === "image" &&
               thumbnail.complete
@@ -397,88 +499,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
     });
 
+
+    // Wait for thumbnails to load before calculating positions.
     await Promise.all(loadingTasks);
 
-    arrangeMemories();
-
-  }
-
-
-  /* ---------- RENDER EDITABLE MEDIA ---------- */
-
-  async function renderEditableMedia(mediaList) {
-
-    mediaList.innerHTML = "";
-
-    for (let i = 0; i < editingMedia.length; i++) {
-
-      const media = editingMedia[i];
-
-      const mediaItem = document.createElement("div");
-      mediaItem.classList.add("memory-edit-media-item");
-
-      try {
-
-        let source;
-
-        if (media.pendingFile) {
-          source = media.previewURL;
-        } else {
-          source = await resolveMediaSource(media);
-        }
-
-        let mediaElement;
-
-        if (media.type === "video") {
-
-          mediaElement = document.createElement("video");
-          mediaElement.controls = true;
-          mediaElement.classList.add("memory-detail-video");
-
-        } else {
-
-          mediaElement = document.createElement("img");
-          mediaElement.alt = "Memory photo";
-          mediaElement.classList.add("memory-detail-image");
-
-        }
-
-        mediaElement.src = source;
-        mediaItem.appendChild(mediaElement);
-
-      } catch (error) {
-
-        console.error("Could not load memory media:", error);
-
-        const errorMessage = document.createElement("p");
-        errorMessage.textContent = "Could not load this file.";
-        mediaItem.appendChild(errorMessage);
-
-      }
-
-      const removeButton = document.createElement("button");
-      removeButton.type = "button";
-      removeButton.classList.add("memory-media-remove-button");
-      removeButton.textContent = "remove";
-
-      removeButton.addEventListener("click", function() {
-
-        const removedMedia = editingMedia[i];
-
-        if (removedMedia.previewURL) {
-          URL.revokeObjectURL(removedMedia.previewURL);
-        }
-
-        editingMedia.splice(i, 1);
-
-        renderEditableMedia(mediaList);
-
-      });
-
-      mediaItem.appendChild(removeButton);
-      mediaList.appendChild(mediaItem);
-
-    }
+    arrangeMemories(reflowLayout);
 
   }
 
@@ -495,14 +520,8 @@ document.addEventListener("DOMContentLoaded", function() {
       return;
     }
 
-    cleanUpEditingMedia();
-
     currentMemoryId = memoryId;
     memoryDetails.innerHTML = "";
-
-    editingMedia = (memory.media || []).map(function(media) {
-      return { ...media };
-    });
 
 
     /* Memory title */
@@ -539,6 +558,25 @@ document.addEventListener("DOMContentLoaded", function() {
     description.textContent = memory.description || "";
 
     memoryDetails.appendChild(description);
+
+
+    /* Memory location */
+
+    const locationHeading = document.createElement("p");
+    locationHeading.classList.add("memory-detail-tags-heading");
+    locationHeading.textContent = "location";
+
+    memoryDetails.appendChild(locationHeading);
+
+    const editLocationContainer = document.createElement("div");
+    editLocationContainer.className = "memory-detail-location";
+
+    memoryDetails.appendChild(editLocationContainer);
+
+    editLocationPicker = window.createLocationPicker(
+      editLocationContainer,
+      memory.location || null
+    );
 
 
     /* Memory tags */
@@ -580,142 +618,43 @@ document.addEventListener("DOMContentLoaded", function() {
 
     /* Memory photos and videos */
 
-    const mediaHeading = document.createElement("p");
-    mediaHeading.classList.add("memory-detail-tags-heading");
-    mediaHeading.textContent = "";
-
-    memoryDetails.appendChild(mediaHeading);
-
     const mediaContainer = document.createElement("div");
     mediaContainer.classList.add("memory-detail-media");
 
-    const mediaList = document.createElement("div");
-    mediaList.classList.add("memory-edit-media-list");
+    for (const media of memory.media) {
 
-    mediaContainer.appendChild(mediaList);
+      try {
 
-    await renderEditableMedia(mediaList);
+        const source = await resolveMediaSource(media);
 
+        let mediaElement;
 
-    /* Add media */
+        if (media.type === "video") {
 
-    const uploadLabel = document.createElement("label");
-    uploadLabel.classList.add("memory-add-media-label");
-    uploadLabel.textContent = "add photos or videos";
+          mediaElement = document.createElement("video");
+          mediaElement.controls = true;
+          mediaElement.classList.add("memory-detail-video");
 
-    const uploadInput = document.createElement("input");
-    uploadInput.type = "file";
-    uploadInput.accept = "image/*,video/*";
-    uploadInput.multiple = true;
-    uploadInput.classList.add("memory-add-media-input");
+        } else {
 
-    uploadInput.addEventListener("change", function() {
-
-      const files = Array.from(uploadInput.files);
-
-      files.forEach(function(file) {
-
-        if (
-          !file.type.startsWith("image/") &&
-          !file.type.startsWith("video/")
-        ) {
-          return;
-        }
-
-        editingMedia.push({
-          type: file.type.startsWith("video/") ? "video" : "image",
-          pendingFile: file,
-          previewURL: URL.createObjectURL(file)
-        });
-
-      });
-
-      uploadInput.value = "";
-
-      renderEditableMedia(mediaList);
-
-    });
-
-    uploadLabel.appendChild(uploadInput);
-    mediaContainer.appendChild(uploadLabel);
-
-    memoryDetails.appendChild(mediaContainer);
-
-
-    /* Delete memory */
-
-    const isVisitorMemory = window.memoryStorage
-      .loadNewMemories()
-      .some(function(item) {
-        return String(item.id) === String(memoryId);
-      });
-
-    if (isVisitorMemory) {
-
-      const deleteButton = document.createElement("button");
-      deleteButton.type = "button";
-      deleteButton.classList.add("memory-delete-button");
-      deleteButton.textContent = "delete";
-
-      deleteButton.addEventListener("click", async function() {
-
-        const confirmed = confirm(
-          "Are you sure you want to delete this memory?"
-        );
-
-        if (!confirmed) {
-          return;
-        }
-
-        try {
-
-          deleteButton.disabled = true;
-          deleteButton.textContent = "deleting...";
-
-          const deletedMemory = await window.memoryStorage.deleteNewMemory(
-            memoryId
-          );
-
-          if (deletedMemory) {
-
-            memory.media.forEach(function(media) {
-
-              if (
-                media.storageKey &&
-                mediaURLCache.has(media.storageKey)
-              ) {
-
-                URL.revokeObjectURL(
-                  mediaURLCache.get(media.storageKey)
-                );
-
-                mediaURLCache.delete(media.storageKey);
-
-              }
-
-            });
-
-            closeMemory();
-            filterMemories();
-
-          }
-
-        } catch (error) {
-
-          console.error("Could not delete memory:", error);
-
-          deleteButton.disabled = false;
-          deleteButton.textContent = "delete";
-
-          alert("Something went wrong. Please try again.");
+          mediaElement = document.createElement("img");
+          mediaElement.alt = memory.title;
+          mediaElement.classList.add("memory-detail-image");
 
         }
 
-      });
+        mediaElement.src = source;
+        mediaContainer.appendChild(mediaElement);
 
-      memoryDetails.appendChild(deleteButton);
+      } catch (error) {
+
+        console.error("Could not load memory media:", error);
+
+      }
 
     }
+
+    memoryDetails.appendChild(mediaContainer);
 
     memoryOverlay.hidden = false;
     document.body.style.overflow = "hidden";
@@ -725,7 +664,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   /* ---------- SAVE MEMORY CHANGES ---------- */
 
-  async function saveMemory() {
+  function saveMemory() {
 
     const memory = getMemories().find(function(item) {
       return String(item.id) === String(currentMemoryId);
@@ -734,13 +673,6 @@ document.addEventListener("DOMContentLoaded", function() {
     if (!memory) {
       return;
     }
-
-    if (editingMedia.length === 0) {
-      alert("A memory needs at least one photo or video.");
-      return;
-    }
-
-    const memoryId = currentMemoryId;
 
     const updatedTitle = memoryDetails.querySelector(
       ".memory-detail-title"
@@ -760,118 +692,19 @@ document.addEventListener("DOMContentLoaded", function() {
       return button.textContent;
     });
 
-    saveButton.disabled = true;
-    saveButton.textContent = "saving...";
+    window.memoryStorage.saveOverride(currentMemoryId, {
+      title: updatedTitle || memory.title,
+      date: updatedDate || memory.date,
+      description: updatedDescription,
+      tags: updatedTags,
+      location: editLocationPicker
+        ? editLocationPicker.getValue()
+        : memory.location || null
+    });
 
-    try {
+    filterMemories();
 
-      const updatedMedia = [];
-
-      // Save any newly uploaded files.
-      for (let i = 0; i < editingMedia.length; i++) {
-
-        const media = editingMedia[i];
-
-        if (media.pendingFile) {
-
-          const storageKey = memoryId + "-media-" +
-            Date.now() + "-" +
-            Math.random().toString(36).slice(2, 8);
-
-          await window.memoryStorage.saveMedia(
-            storageKey,
-            media.pendingFile
-          );
-
-          updatedMedia.push({
-            type: media.type,
-            storageKey: storageKey
-          });
-
-        } else {
-
-          updatedMedia.push({
-            ...media
-          });
-
-        }
-
-      }
-
-      // Find uploaded files that were removed.
-      const remainingKeys = updatedMedia
-        .filter(function(media) {
-          return media.storageKey;
-        })
-        .map(function(media) {
-          return media.storageKey;
-        });
-
-      const removedKeys = (memory.media || [])
-        .filter(function(media) {
-          return media.storageKey &&
-            !remainingKeys.includes(media.storageKey);
-        })
-        .map(function(media) {
-          return media.storageKey;
-        });
-
-      // Save all memory changes.
-      window.memoryStorage.saveOverride(memoryId, {
-        title: updatedTitle || memory.title,
-        date: updatedDate || memory.date,
-        description: updatedDescription,
-        tags: updatedTags,
-        media: updatedMedia
-      });
-
-      // Remove files that are no longer attached to the memory.
-      if (removedKeys.length > 0) {
-
-        try {
-
-          await window.memoryStorage.deleteMedia(removedKeys);
-
-          removedKeys.forEach(function(key) {
-
-            if (mediaURLCache.has(key)) {
-
-              URL.revokeObjectURL(mediaURLCache.get(key));
-              mediaURLCache.delete(key);
-
-            }
-
-          });
-
-        } catch (error) {
-
-          console.error("Could not remove unused media files:", error);
-
-        }
-
-      }
-
-      // Update the archive.
-      filterMemories();
-
-      // Reopen the memory using its newly saved information.
-      await openMemory(memoryId);
-
-      saveButton.textContent = "saved";
-
-    } catch (error) {
-
-      console.error("Could not save memory:", error);
-
-      alert("Something went wrong while saving. Please try again.");
-
-      saveButton.textContent = "save";
-
-    } finally {
-
-      saveButton.disabled = false;
-
-    }
+    saveButton.textContent = "saved";
 
   }
 
@@ -882,15 +715,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
   function closeMemory() {
 
-    cleanUpEditingMedia();
-
     memoryOverlay.hidden = true;
     document.body.style.overflow = "";
 
     saveButton.textContent = "save";
-    saveButton.disabled = false;
-
     currentMemoryId = null;
+    editLocationPicker = null;
 
   }
 
@@ -911,6 +741,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     addMemoryForm.reset();
     addMemoryMessage.textContent = "";
+    addLocationPicker.setValue(null);
 
     addMemoryOverlay.hidden = false;
     document.body.style.overflow = "hidden";
@@ -988,20 +819,23 @@ document.addEventListener("DOMContentLoaded", function() {
 
       }
 
+      // Create the new memory.
       const newMemory = {
         id: memoryId,
         title: title,
         date: date,
         description: description,
         tags: selectedTags,
-        location: null,
+        location: addLocationPicker.getValue(),
         media: media
       };
 
+      // Save the memory in this visitor's browser.
       window.memoryStorage.saveNewMemory(newMemory);
 
+      // Show the updated archive.
       closeAddMemory();
-      filterMemories();
+      filterMemories(true);
 
     } catch (error) {
 
@@ -1047,12 +881,23 @@ document.addEventListener("DOMContentLoaded", function() {
 
   /* ---------- FILTER MEMORIES ---------- */
 
-  function filterMemories() {
+  function filterMemories(reflowLayout = false) {
 
     const allMemories = getMemories();
 
+    // If a memory was added or deleted, rebuild the layout for the collection.
+    const savedIds = localStorage.getItem(LAYOUT_IDS_KEY);
+
+    const currentIds = allMemories.map(function(memory) {
+      return String(memory.id);
+    });
+
+    if (savedIds && JSON.stringify(currentIds) !== savedIds) {
+      reflowLayout = true;
+    }
+
     if (selectedFilters.length === 0) {
-      displayMemories(allMemories);
+      displayMemories(allMemories, reflowLayout);
       return;
     }
 
@@ -1064,7 +909,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     });
 
-    displayMemories(filteredMemories);
+    displayMemories(filteredMemories, reflowLayout);
 
   }
 
@@ -1100,6 +945,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
       }
 
+      // Update the filter button appearances.
       filterButtons.forEach(function(filterButton) {
 
         const filter = filterButton.dataset.filter;
@@ -1129,5 +975,13 @@ document.addEventListener("DOMContentLoaded", function() {
   document.querySelector('[data-filter="all"]').classList.add("active");
 
   filterMemories();
+
+  // Open a memory directly when arriving from its map marker.
+  const memoryHash = new URLSearchParams(window.location.hash.slice(1));
+  const linkedMemoryId = memoryHash.get("memory");
+
+  if (linkedMemoryId) {
+    openMemory(linkedMemoryId);
+  }
 
 });

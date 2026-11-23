@@ -1,7 +1,7 @@
 /* ---------- MEMORY ARCHIVE DATA ---------- */
 
 // Each memory is stored as an object inside the memories array.
-// The archive, map, and individual memory views will all use this data.
+// Locations include coordinates so the map can place each memory.
 
 window.memories = [
 
@@ -11,7 +11,12 @@ window.memories = [
     date: "2026-03-20",
     description: "",
     tags: ["comfort"],
-    location: null,
+    location: {
+      name: "Arroyo Seco Gorge",
+      displayName: "near La Loma Road and California Avenue, Pasadena, California",
+      lat: 34.1351,
+      lng: -118.16269
+    },
     media: [
       {
         type: "image",
@@ -26,7 +31,13 @@ window.memories = [
     date: "2026-08-10",
     description: "",
     tags: ["comfort", "savor"],
-    location: null,
+    location: {
+      name: "Fluffy McCloud's",
+      displayName: "1814 W Sunset Blvd, Los Angeles, CA 90026",
+      query: "1814 W Sunset Blvd, Los Angeles, CA 90026",
+      lat: null,
+      lng: null
+    },
     media: [
       {
         type: "image",
@@ -41,7 +52,13 @@ window.memories = [
     date: "2026-10-03",
     description: "",
     tags: ["comfort", "savor"],
-    location: null,
+    // The public map label is intentionally general and does not reveal the home address.
+    location: {
+      name: "East Village",
+      displayName: "East Village, New York",
+      lat: 40.7265,
+      lng: -73.9835
+    },
     media: [
       {
         type: "image",

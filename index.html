@@ -3,14 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-    <!-- title -->
     <title>for keeping</title>
 
-    <!-- Link to CSS -->
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/location.css" />
 
-    <!-- JAVASCRIPT FOR NAVIGATION AND FILTER PANEL -->
     <script>
       document.addEventListener('DOMContentLoaded', function() {
 
@@ -52,14 +49,8 @@
     <!-- ---------- HEADER ---------- -->
 
     <header>
-
-      <!-- Logo -->
       <h1><a href="index.html">for &mdash; keeping</a></h1>
-
-      <!-- hamburger menu for tablet and mobile -->
       <span class="mobile-menu">&#8801;</span>
-
-      <!-- Main navigation -->
       <nav>
         <ul id="menu">
           <li><a href="index.html" class="active">archive</a></li>
@@ -67,17 +58,13 @@
           <li><a href="about.html">about</a></li>
         </ul>
       </nav>
-
     </header>
 
 
     <!-- ---------- ARCHIVE CONTROLS ---------- -->
 
     <div class="archive-controls">
-
-      <!-- Filter button and dropdown -->
       <div class="filter-wrapper">
-
         <button
           class="filter-toggle"
           id="filter-toggle"
@@ -87,9 +74,7 @@
           filter
         </button>
 
-        <!-- Filter dropdown -->
         <aside class="filter-panel" id="filter-panel" hidden>
-
           <button
             class="close-filter"
             id="close-filter"
@@ -99,64 +84,45 @@
           </button>
 
           <p class="filter-heading">filter by</p>
-
           <div class="archive-filters">
             <button class="filter-button active" data-filter="all">all</button>
             <button class="filter-button" data-filter="comfort">comfort</button>
             <button class="filter-button" data-filter="wonder">wonder</button>
             <button class="filter-button" data-filter="savor">savor</button>
           </div>
-
         </aside>
-
       </div>
 
-      <!-- Add memory button -->
       <button class="add-memory-button" id="add-memory-button">
         + add a memory
       </button>
-
     </div>
 
 
     <!-- ---------- MEMORY ARCHIVE ---------- -->
 
     <main id="archive">
-
-      <!-- JavaScript will place the memory thumbnails inside this container -->
       <div id="memory-container"></div>
 
       <!-- ---------- MEMORY OVERLAY ---------- -->
 
       <div class="memory-overlay" id="memory-overlay" hidden>
-
         <div class="memory-overlay-content">
-
-          <!-- Save button -->
           <button class="save-memory-button" id="save-memory-button">
             save
           </button>
-
-          <!-- Close button -->
           <button class="close-overlay" aria-label="Close memory">
             &times;
           </button>
-
-          <!-- Memory information will be added here by JavaScript -->
           <div id="memory-details"></div>
-
         </div>
-
       </div>
 
 
       <!-- ---------- ADD MEMORY OVERLAY ---------- -->
 
       <div class="memory-overlay" id="add-memory-overlay" hidden>
-
         <div class="memory-overlay-content add-memory-content">
-
-          <!-- Close button -->
           <button
             class="close-overlay"
             id="close-add-memory"
@@ -168,8 +134,6 @@
           <h2 class="add-memory-heading">add a memory</h2>
 
           <form id="add-memory-form">
-
-            <!-- Title -->
             <label for="new-memory-title">title</label>
             <input
               type="text"
@@ -179,7 +143,6 @@
               required
             />
 
-            <!-- Date -->
             <label for="new-memory-date">date</label>
             <input
               type="date"
@@ -188,7 +151,6 @@
               required
             />
 
-            <!-- Description -->
             <label for="new-memory-description">description</label>
             <textarea
               id="new-memory-description"
@@ -197,27 +159,22 @@
               rows="4"
             ></textarea>
 
-            <!-- Tags -->
             <fieldset class="add-memory-tags">
               <legend>TAGS</legend>
-
               <label>
                 <input type="checkbox" name="tags" value="comfort" />
                 comfort
               </label>
-
               <label>
                 <input type="checkbox" name="tags" value="wonder" />
                 wonder
               </label>
-
               <label>
                 <input type="checkbox" name="tags" value="savor" />
                 savor
               </label>
             </fieldset>
 
-            <!-- Media upload -->
             <label for="new-memory-media">PHOTOS AND VIDEOS</label>
             <input
               type="file"
@@ -232,19 +189,13 @@
               You can select multiple photos and videos.
             </p>
 
-            <!-- Submit -->
             <button type="submit" class="submit-memory-button">
               SAVE MEMORY
             </button>
-
             <p id="add-memory-message" role="status"></p>
-
           </form>
-
         </div>
-
       </div>
-
     </main>
 
 
@@ -253,6 +204,7 @@
     <script src="js/memories.js" defer></script>
     <script src="js/storage.js" defer></script>
     <script src="js/archive.js" defer></script>
+    <script src="js/location-picker.js" defer></script>
 
   </body>
 </html>

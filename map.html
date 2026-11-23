@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head >
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>for keeping</title>
+
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/map.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+      defer
+    ></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function() {
+        var hamburger = document.querySelector(".mobile-menu");
+
+        if (hamburger) {
+          hamburger.addEventListener("click", function() {
+            document.getElementById("menu").classList.toggle("show");
+          });
+        }
+      });
+    </script>
+  </head>
+
+  <body class="map-page">
+    <header>
+      <h1><a href="index.html">for &mdash; keeping</a></h1>
+      <span class="mobile-menu">&#8801;</span>
+
+      <nav>
+        <ul id="menu">
+          <li><a href="index.html">archive</a></li>
+          <li><a href="map.html" class="active">map</a></li>
+          <li><a href="about.html">about</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <h2 class="map-heading"></h2>
+      <p id="map-message" aria-live="polite">loading memories...</p>
+      <div id="memory-map" aria-label="Map of saved memories"></div>
+    </main>
+
+    <script src="js/memories.js" defer></script>
+    <script src="js/storage.js" defer></script>
+    <script src="js/map.js" defer></script>
+  </body>
+</html>
